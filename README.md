@@ -1,6 +1,6 @@
 # Proyecto 2 - Bases de Datos 1 (Luxor)
 
-Este proyecto es la entrega final del curso. Implementa un sistema de gestión de inventario y ventas para la perfumería "Luxor".
+Segunda entrega del proyecto para bases de datos. El proyecto real no es de esta manera pero fue adaptado individualmente para cumplir todos los requisitos solicitados en Bases de Datos 1. Implementa un sistema de gestión de inventario y ventas para la perfumería Luxor.
 
 ## Guía de Inicio Rápido
 
@@ -11,7 +11,6 @@ Este proyecto es la entrega final del curso. Implementa un sistema de gestión d
    ```
 3. **Acceso:** [http://localhost:5173](http://localhost:5173)
 4. **Credenciales DB:** `proy2` / `secret` (Configuradas en `.env`).
-5. **Credenciales App:** `admin@luxor.com` / `admin123`.
 
 ---
 
