@@ -55,7 +55,7 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(20) DEFAULT 'user'
+    role VARCHAR(20) DEFAULT 'basic_role'
 );
 
 -- Indexes
@@ -80,10 +80,14 @@ JOIN empleado e ON v.id_empleado = e.id_empleado
 JOIN detalle_venta dv ON v.id_venta = dv.id_venta
 JOIN producto p ON dv.id_producto = p.id_producto;
 
--- SEED DATA (Asegurar que los reportes tengan datos iniciales)
+-- SEED DATA
 
 INSERT INTO users (name, email, password, role) VALUES
-('Admin Luxor', 'admin@luxor.com', 'admin123', 'admin');
+('Admin Luxor', 'admin@luxor.com', 'admin123', 'admin_role'),
+('Manager Luxor', 'manager@luxor.com', 'manager123', 'manager_role'),
+('Ventas Luxor', 'sales@luxor.com', 'sales123', 'sales_role'),
+('Inventario Luxor', 'inventory@luxor.com', 'inv123', 'inventory_role'),
+('Cliente Luxor', 'client@luxor.com', 'client123', 'basic_role');
 
 -- 25+ Proveedores
 INSERT INTO proveedor (nombre, contacto, telefono) VALUES
@@ -133,7 +137,7 @@ INSERT INTO producto (nombre, categoria, precio, stock, id_proveedor) VALUES
 ('Interlude', 'Incienso', 3200, 4, 12), ('Black Phantom', 'Gourmand', 2900, 6, 21), ('Delina', 'Rosa', 2700, 7, 13),
 ('Hacivat', 'Piña', 2500, 9, 9), ('Side Effect', 'Canela', 3100, 5, 20);
 
--- Dummy Ventas para poblar reportes (Ventas reales para que EXISTS e IN funcionen)
+-- Dummy Ventas para poblar reportes
 INSERT INTO venta (id_cliente, id_empleado, total) VALUES
 (1, 1, 450), (2, 2, 500), (3, 3, 650), (4, 4, 480), (5, 5, 420),
 (1, 6, 3500), (2, 7, 2800), (3, 8, 4000), (4, 9, 1500), (5, 10, 1600);
@@ -142,3 +146,174 @@ INSERT INTO venta (id_cliente, id_empleado, total) VALUES
 INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario) VALUES
 (1, 1, 1, 450), (2, 2, 1, 500), (3, 3, 1, 650), (4, 4, 1, 480), (5, 5, 1, 420),
 (6, 6, 1, 3500), (7, 7, 1, 2800), (8, 8, 1, 4000), (9, 9, 1, 1500), (10, 10, 1, 1600);
+
+-- STORED PROCEDURES
+-- 1. sp_create_sale
+CREATE OR REPLACE PROCEDURE sp_create_sale(
+    p_id_cliente INT,
+    p_id_empleado INT,
+    p_productos JSON,
+    OUT p_total DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_venta INT;
+    v_prod JSON;
+    v_precio DECIMAL;
+    v_subtotal DECIMAL;
+    v_total DECIMAL := 0;
+    v_stock INT;
+BEGIN
+    INSERT INTO venta (id_cliente, id_empleado, total)
+    VALUES (p_id_cliente, p_id_empleado, 0)
+    RETURNING id_venta INTO v_id_venta;
+
+    FOR v_prod IN SELECT * FROM json_array_elements(p_productos)
+    LOOP
+        SELECT precio, stock INTO v_precio, v_stock 
+        FROM producto WHERE id_producto = (v_prod->>'id_producto')::INT;
+        
+        IF v_stock < (v_prod->>'cantidad')::INT THEN
+            RAISE EXCEPTION 'Stock insuficiente para el producto %', (v_prod->>'id_producto')::INT;
+        END IF;
+
+        v_subtotal := v_precio * (v_prod->>'cantidad')::INT;
+        v_total := v_total + v_subtotal;
+
+        INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario)
+        VALUES (v_id_venta, (v_prod->>'id_producto')::INT, (v_prod->>'cantidad')::INT, v_precio);
+
+        UPDATE producto 
+        SET stock = stock - (v_prod->>'cantidad')::INT
+        WHERE id_producto = (v_prod->>'id_producto')::INT;
+    END LOOP;
+
+    UPDATE venta SET total = v_total WHERE id_venta = v_id_venta;
+    p_total := v_total;
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        RAISE;
+END;
+$$;
+
+-- 2. sp_add_product
+CREATE OR REPLACE PROCEDURE sp_add_product(
+    p_nombre VARCHAR,
+    p_categoria VARCHAR,
+    p_precio DECIMAL,
+    p_stock INT,
+    p_id_proveedor INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO producto (nombre, categoria, precio, stock, id_proveedor)
+    VALUES (p_nombre, p_categoria, p_precio, p_stock, p_id_proveedor);
+END;
+$$;
+
+-- 3. sp_update_stock
+CREATE OR REPLACE PROCEDURE sp_update_stock(
+    p_id_producto INT,
+    p_cantidad INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_current_stock INT;
+BEGIN
+    SELECT stock INTO v_current_stock FROM producto WHERE id_producto = p_id_producto;
+    
+    IF v_current_stock + p_cantidad < 0 THEN
+        RAISE EXCEPTION 'No se puede reducir el stock por debajo de 0';
+    END IF;
+
+    UPDATE producto SET stock = stock + p_cantidad WHERE id_producto = p_id_producto;
+END;
+$$;
+
+-- 4. sp_delete_client
+CREATE OR REPLACE PROCEDURE sp_delete_client(
+    p_id_cliente INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_sales_count INT;
+BEGIN
+    SELECT COUNT(*) INTO v_sales_count FROM venta WHERE id_cliente = p_id_cliente;
+    
+    IF v_sales_count > 0 THEN
+        RAISE EXCEPTION 'No se puede eliminar el cliente porque tiene ventas asociadas';
+    END IF;
+
+    DELETE FROM cliente WHERE id_cliente = p_id_cliente;
+END;
+$$;
+
+-- 5. sp_get_employee_sales
+CREATE OR REPLACE PROCEDURE sp_get_employee_sales(
+    IN p_id_empleado INT,
+    OUT p_total_ventas INT,
+    OUT p_suma_total DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT COUNT(*), COALESCE(SUM(total), 0)
+    INTO p_total_ventas, p_suma_total
+    FROM venta
+    WHERE id_empleado = p_id_empleado;
+END;
+$$;
+
+-- CREATION OF ROLES
+CREATE ROLE admin_role;
+CREATE ROLE manager_role;
+CREATE ROLE sales_role;
+CREATE ROLE inventory_role;
+CREATE ROLE basic_role;
+
+GRANT admin_role, manager_role, sales_role, inventory_role, basic_role TO proy3;
+
+-- PRIVILEGES (GRANT/REVOKE)
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE EXECUTE ON ALL ROUTINES IN SCHEMA public FROM PUBLIC;
+
+-- admin_role
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin_role;
+GRANT EXECUTE ON PROCEDURE sp_create_sale(INT, INT, JSON) TO admin_role;
+GRANT EXECUTE ON PROCEDURE sp_add_product(VARCHAR, VARCHAR, DECIMAL, INT, INT) TO admin_role;
+GRANT EXECUTE ON PROCEDURE sp_update_stock(INT, INT) TO admin_role;
+GRANT EXECUTE ON PROCEDURE sp_delete_client(INT) TO admin_role;
+GRANT EXECUTE ON PROCEDURE sp_get_employee_sales(INT) TO admin_role;
+
+-- manager_role
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO manager_role;
+GRANT UPDATE, INSERT, DELETE ON empleado TO manager_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO manager_role;
+GRANT EXECUTE ON PROCEDURE sp_get_employee_sales(INT) TO manager_role;
+GRANT EXECUTE ON PROCEDURE sp_delete_client(INT) TO manager_role;
+
+-- sales_role
+GRANT SELECT ON producto, cliente, empleado, proveedor, venta, detalle_venta, vista_ventas_completas TO sales_role;
+GRANT INSERT, UPDATE ON venta, detalle_venta, cliente TO sales_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO sales_role;
+GRANT EXECUTE ON PROCEDURE sp_create_sale(INT, INT, JSON) TO sales_role;
+GRANT EXECUTE ON PROCEDURE sp_delete_client(INT) TO sales_role;
+
+-- inventory_role
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO inventory_role;
+GRANT INSERT, UPDATE, DELETE ON producto, proveedor TO inventory_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO inventory_role;
+GRANT EXECUTE ON PROCEDURE sp_add_product(VARCHAR, VARCHAR, DECIMAL, INT, INT) TO inventory_role;
+GRANT EXECUTE ON PROCEDURE sp_update_stock(INT, INT) TO inventory_role;
+
+-- basic_role
+GRANT SELECT ON producto, proveedor, vista_ventas_completas TO basic_role;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO basic_role;
