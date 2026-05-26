@@ -150,3 +150,41 @@ Se implementaron 5 Stored Procedures ejecutados desde el backend:
 - El proyecto utiliza **React 19**, **Node.js 22** y **PostgreSQL 16**.
 - El manejo de sesiones y autenticación se realiza mediante **JWT** (JSON Web Tokens) guardado en el LocalStorage y transmitido en los headers HTTP.
 - Los reportes permiten exportación a formato **CSV**.
+
+---
+
+## V. Características Principales del Sistema
+
+1. **Storefront para Clientes:** Interfaz moderna y curada (`/perfumes`) donde los clientes pueden explorar fragancias.
+2. **Carrito de Compras y Checkout:** Gestión dinámica de pedidos.
+3. **Dashboard Administrativo:** Panel de control centralizado para la gestión operativa.
+4. **CRUD Completo de Inventario:** Administración completa de Productos y Proveedores (creación, edición, eliminación y control de stock).
+5. **Gestión CRM Integrada:** Administración de Clientes y personal (Empleados).
+6. **Reportes y Analíticas Avanzadas:** 
+   - Categorías más populares.
+   - Rendimiento de ventas por empleado.
+   - Historial de productos vendidos.
+   - Reporte de clientes activos.
+7. **Role-Based Access Control (RBAC):** Seguridad a nivel de aplicación (React Router) y a nivel de base de datos (PostgreSQL Roles).
+
+---
+
+## VI. Capturas de Pantalla (Vistas del Proyecto)
+
+Para facilitar la evaluación del proyecto tras levantar los contenedores con Docker, a continuación se presentan las vistas principales del sistema y a qué corresponde cada una.
+
+### 1. Pantalla de Autenticación (Login)
+*Punto de entrada de la aplicación donde cada usuario ingresa según su rol.*
+![Login Screen](./screenshots/loginscreen.png)
+
+### 2. Vista de Cliente (Storefront)
+*Vista exclusiva para cuentas con `basic_role` (ej. client@luxor.com). Presenta el catálogo de productos disponibles para la compra y el carrito.*
+![Client View](./screenshots/clientview.png)
+
+### 3. Vista de Administración (Dashboard - Gestión)
+*Vista de gestión de inventario y CRM, exclusiva para cuentas administrativas (ej. admin@luxor.com, inventory@luxor.com, sales@luxor.com).*
+![Admin View 1](./screenshots/adminview1.png)
+
+### 4. Vista de Administración (Dashboard - Reportes)
+*Sección de reportes analíticos generados mediante vistas, agrupaciones y CTEs en la base de datos.*
+![Admin View 2](./screenshots/adminview2.png)
