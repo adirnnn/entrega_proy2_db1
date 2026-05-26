@@ -68,17 +68,16 @@ export default function LoginPage() {
 
             <LoginForm onSuccess={handleSuccess} />
 
-          {/* Hint box with mock credentials */}
+          {/* Hint box with role credentials */}
             <div className="mt-8 p-4 rounded-xl bg-primary-beige/40 border border-primary-beige text-xs text-secondary-brown space-y-1">
             <p className="font-semibold text-primary-black mb-1">
-                Credenciales de prueba:
+                Credenciales de Evaluación (Proyecto 3):
             </p>
             <p>
-                <span className="font-medium">Email:</span>{" "}
-                demo@joyeroarabe.com
+                <span className="font-medium">Admin:</span> admin@luxor.com / admin123
             </p>
             <p>
-                <span className="font-medium">Contraseña:</span> demo1234
+                <span className="font-medium">Cliente:</span> client@luxor.com / client123
             </p>
             </div>
         </div>

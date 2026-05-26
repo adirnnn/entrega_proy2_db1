@@ -8,8 +8,6 @@ import { useAuth } from "../../context/AuthContext";
 const navLinks = [
   { label: "Inicio", href: "/" },
   { label: "Perfumes", href: "/perfumes" },
-  { label: "Nosotros", href: "/#brand" },
-  { label: "Contacto", href: "#contacto" },
 ];
 
 export const Navbar = () => {

@@ -249,17 +249,32 @@ app.get("/reports/active-clients", requireRole, async (req, res) => {
 app.get("/reports/employee-sales", requireRole, async (req, res) => {
   try {
     const result = await withTransaction(req.user.role, async (t) => {
-      return await sequelize.query(`
-        WITH EmployeeSales AS (
-          SELECT id_empleado, COUNT(id_venta) as total_ventas, SUM(total) as suma_total
-          FROM venta
-          GROUP BY id_empleado
-        )
-        SELECT e.nombre, e.puesto, COALESCE(es.total_ventas, 0) as total_ventas, COALESCE(es.suma_total, 0) as suma_total
-        FROM empleado e
-        LEFT JOIN EmployeeSales es ON e.id_empleado = es.id_empleado
-        ORDER BY suma_total DESC
-      `, { type: sequelize.QueryTypes.SELECT, transaction: t });
+      // Get all employees using ORM
+      const empleados = await Empleado.findAll({ transaction: t });
+      const report = [];
+      
+      for (const e of empleados) {
+        // Invoke the 5th Stored Procedure!
+        const [spResult] = await sequelize.query(
+          'CALL sp_get_employee_sales(:id_empleado, NULL, NULL)',
+          {
+            replacements: { id_empleado: e.id_empleado },
+            transaction: t
+          }
+        );
+        
+        // Postgres returns OUT parameters as a row
+        const data = spResult ? spResult : { p_total_ventas: 0, p_suma_total: 0 };
+        
+        report.push({
+          nombre: e.nombre,
+          puesto: e.puesto,
+          total_ventas: parseInt(data.p_total_ventas || 0, 10),
+          suma_total: parseFloat(data.p_suma_total || 0)
+        });
+      }
+      
+      return report.sort((a, b) => b.suma_total - a.suma_total);
     });
     res.json(result);
   } catch (err) {
