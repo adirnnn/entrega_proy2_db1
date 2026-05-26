@@ -1,26 +1,23 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { apiFetch } from "./api";
 
-export type Product = {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  description: string;
-  notes: {
-    salida: string;
-    corazon: string;
-    fondo: string;
-  };
+export interface Product {
+  id_producto: number;
+  nombre: string;
+  categoria: string;
+  precio: number;
+  stock: number;
+  proveedor?: string;
+  id_proveedor: number;
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  const res = await fetch(`${API_URL}/products`);
+  const res = await apiFetch("/products");
   if (!res.ok) throw new Error('Error al obtener productos');
   return res.json();
 }
 
 export async function fetchProductById(id: string): Promise<Product> {
-  const res = await fetch(`${API_URL}/products/${id}`);
+  const res = await apiFetch(`/products/${id}`);
   if (!res.ok) throw new Error('Producto no encontrado');
   return res.json();
 }

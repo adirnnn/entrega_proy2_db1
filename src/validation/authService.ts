@@ -1,14 +1,14 @@
-
-
 export interface LoginCredentials {
     email: string;
     password: string;
 }
 
 export interface AuthUser {
-    id: string;
+    id: number;
     email: string;
     name: string;
+    role: string;
+    token: string;
 }
 
 export interface AuthResult {
@@ -17,44 +17,38 @@ export interface AuthResult {
     error?: string;
 }
 
-const MOCK_USERS: Array<LoginCredentials & AuthUser> = [
-{
-    id: "usr_001",
-    email: "admin@joyeroarabe.com",
-    password: "Luxor2024!",
-    name: "Administrador",
-    },
-{
-    id: "usr_002",
-    email: "demo@joyeroarabe.com",
-    password: "demo1234",
-    name: "Usuario Demo",
-},
-];
-
-
-export async function mockLogin(
-credentials: LoginCredentials
-): Promise<AuthResult> {
-
-    
-await new Promise((resolve) => setTimeout(resolve, 800));
-
-const match = MOCK_USERS.find(
-    (u) =>
-        u.email.toLowerCase() === credentials.email.toLowerCase() &&
-        u.password === credentials.password
-    );
-
-if (match) {
-    return {
-        success: true,
-        user: { id: match.id, email: match.email, name: match.name },
-    };
-}
-
-return {
-    success: false,
-    error: "Correo o contraseña incorrectos.",
-    };
+export async function loginApi(credentials: LoginCredentials): Promise<AuthResult> {
+    try {
+        const response = await fetch("http://localhost:3000/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(credentials),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            return {
+                success: true,
+                user: {
+                    id: data.user.id,
+                    email: credentials.email,
+                    name: data.user.name,
+                    role: data.user.role,
+                    token: data.token,
+                },
+            };
+        } else {
+            return {
+                success: false,
+                error: data.message || "Correo o contraseña incorrectos.",
+            };
+        }
+    } catch (err) {
+        return {
+            success: false,
+            error: "Error de conexión con el servidor.",
+        };
+    }
 }

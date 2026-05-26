@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from "react";
-import { mockLogin } from "../validation/authService";
+import { loginApi } from "../validation/authService";
 import type { AuthUser } from "../validation/authService";
 
 export interface LoginFormState {
@@ -74,7 +74,7 @@ export function useLoginForm(): UseLoginFormReturn {
         setErrors({});
     
         try {
-        const result = await mockLogin(values);
+        const result = await loginApi(values);
 
         if (result.success && result.user) {
             setIsSuccess(true);
